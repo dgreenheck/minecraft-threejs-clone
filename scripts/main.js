@@ -9,15 +9,16 @@ const renderer = new THREE.WebGLRenderer();
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setClearColor(0x80a0e0);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 document.body.appendChild(renderer.domElement);
 
 // Camera setup
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.set(45, 45, 45);
-camera.lookAt(0, 0, 0);
+camera.position.set(-32, 32, 32);
 
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.target.set(16, 0, 16);
+controls.target.set(32, 0, 32);
 controls.update();
 
 // Scene setup
@@ -27,13 +28,22 @@ world.generate();
 scene.add(world);
 
 function setupLighting() {
-  const light1 = new THREE.DirectionalLight();
-  light1.position.set(1, 1, 1);
-  scene.add(light1);
+  const sun = new THREE.DirectionalLight();
+  sun.intensity = 1.5;
+  sun.position.set(50, 50, 50);
+  sun.castShadow = true;
 
-  const light2 = new THREE.DirectionalLight();
-  light2.position.set(-1, 1, -0.5);
-  scene.add(light2);
+  // Set the size of the sun's shadow box
+  sun.shadow.camera.left = -40;
+  sun.shadow.camera.right = 40;
+  sun.shadow.camera.top = 40;
+  sun.shadow.camera.bottom = -40;
+  sun.shadow.camera.near = 0.1;
+  sun.shadow.camera.far = 200;
+  sun.shadow.bias = -0.001;
+  scene.add(sun);
+
+  scene.add(new THREE.CameraHelper(sun.shadow.camera));
 
   const ambient = new THREE.AmbientLight();
   ambient.intensity = 0.1;
