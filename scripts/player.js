@@ -16,7 +16,7 @@ export class Player {
   input = new THREE.Vector3();
 
   constructor(scene) {
-    this.position.set(32, 10, 32);
+    this.position.set(32, 32, 32);
     this.cameraHelper.visible = false;
     scene.add(this.camera);
     scene.add(this.cameraHelper);
@@ -26,6 +26,7 @@ export class Player {
       new THREE.CylinderGeometry(this.radius, this.radius, this.height, 16),
       new THREE.MeshBasicMaterial({ wireframe: true })
     );
+    this.boundsHelper.visible = false;
     scene.add(this.boundsHelper);
 
     // Add event listeners for keyboard/mouse events
@@ -135,7 +136,7 @@ export class Player {
         break;
       case 'KeyR':
         if (this.repeat) break;
-        this.position.set(32, 10, 32);
+        this.position.set(32, 32, 32);
         this.velocity.set(0, 0, 0);
         break;
       case 'Space':

@@ -28,29 +28,30 @@ const scene = new THREE.Scene();
 const player = new Player(scene);
 const physics = new Physics(scene);
 const world = new World();
-world.generate();
 scene.add(world);
 
-function setupLighting() {
-  const sun = new THREE.DirectionalLight();
-  sun.intensity = 1.5;
-  sun.position.set(50, 50, 50);
-  sun.castShadow = true;
+const sun = new THREE.DirectionalLight();
+sun.intensity = 1.5;
+sun.position.set(50, 50, 50);
+sun.castShadow = true;
 
-  // Set the size of the sun's shadow box
-  sun.shadow.camera.left = -40;
-  sun.shadow.camera.right = 40;
-  sun.shadow.camera.top = 40;
-  sun.shadow.camera.bottom = -40;
-  sun.shadow.camera.near = 0.1;
-  sun.shadow.camera.far = 200;
-  sun.shadow.bias = -0.001;
-  scene.add(sun);
+// Set the size of the sun's shadow box
+sun.shadow.camera.left = -40;
+sun.shadow.camera.right = 40;
+sun.shadow.camera.top = 40;
+sun.shadow.camera.bottom = -40;
+sun.shadow.camera.near = 0.1;
+sun.shadow.camera.far = 200;
+sun.shadow.bias = -0.0001;
+sun.shadow.mapSize = new THREE.Vector2(2048, 2048);
+scene.add(sun);
+scene.add(sun.target);
 
-  const ambient = new THREE.AmbientLight();
-  ambient.intensity = 0.2;
-  scene.add(ambient);
-}
+const ambient = new THREE.AmbientLight();
+ambient.intensity = 0.2;
+scene.add(ambient);
+
+scene.fog = new THREE.Fog(0x80a0e0, 50, 100);
 
 // Events
 window.addEventListener('resize', () => {
@@ -75,13 +76,19 @@ function animate() {
   const currentTime = performance.now();
   const dt = (currentTime - previousTime) / 1000;
 
+  // Position the sun relative to the player. Need to adjust both the
+  // position and target of the sun to keep the same sun angle
+  sun.position.copy(player.camera.position);
+  sun.position.sub(new THREE.Vector3(-50, -50, -50));
+  sun.target.position.copy(player.camera.position);
+
   physics.update(dt, player, world);
+  world.update(player);
   renderer.render(scene, player.controls.isLocked ? player.camera : orbitCamera);
   stats.update();
 
   previousTime = currentTime;
 }
 
-setupUI(world, player, physics);
-setupLighting();
+setupUI(world, player, physics, scene);
 animate();

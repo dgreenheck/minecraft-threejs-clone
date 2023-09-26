@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { blocks } from './blocks';
 import { Player } from './player';
-import { World } from './world';
+import { WorldChunk } from './worldChunk';
 
 const collisionMaterial = new THREE.MeshBasicMaterial({
   color: 0xff0000,
@@ -33,7 +33,7 @@ export class Physics {
    * Moves the physics simulation forward in time by 'dt'
    * @param {number} dt 
    * @param {Player} player
-   * @param {World} world
+   * @param {WorldChunk} world
    */
   update(dt, player, world) {
     this.accumulator += dt;

@@ -1,12 +1,14 @@
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
-import { World } from './world';
 import { resources } from './blocks';
+import { Physics } from './physics';
 
 /**
- * 
+ * Sets up the UI controls
  * @param {World} world 
+ * @param {Player} player
+ * @param {Physics} physics
  */
-export function setupUI(world, player, physics) {
+export function setupUI(world, player, physics, scene) {
   const gui = new GUI();
 
   const playerFolder = gui.addFolder('Player');
@@ -20,9 +22,11 @@ export function setupUI(world, player, physics) {
   physicsFolder.add(physics, 'simulationRate', 10, 1000).name('Sim Rate');
 
   const worldFolder = gui.addFolder('World');
-  worldFolder.add(world.size, 'width', 8, 128, 1).name('Width');
-  worldFolder.add(world.size, 'height', 8, 32, 1).name('Height');
-  
+  worldFolder.add(world, 'drawDistance', 0, 5, 1).name('Draw Distance');
+  worldFolder.add(world, 'asyncLoading').name('Async Loading');
+  worldFolder.add(scene.fog, 'near', 1, 200, 1).name('Fog Near');
+  worldFolder.add(scene.fog, 'far', 1, 200, 1).name('Fog Far');
+
   const terrainFolder = worldFolder.addFolder('Terrain');
   terrainFolder.add(world.params, 'seed', 0, 10000, 1).name('Seed');
   terrainFolder.add(world.params.terrain, 'scale', 10, 100).name('Scale');
@@ -39,7 +43,7 @@ export function setupUI(world, player, physics) {
     scaleFolder.add(resource.scale, 'z', 10, 100).name('Z Scale');
   }
 
-  terrainFolder.onChange((event) => {
-    world.generate();
+  terrainFolder.onFinishChange((event) => {
+    world.regenerate(player);
   });
 }
