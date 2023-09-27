@@ -1,11 +1,15 @@
 import * as THREE from 'three';
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+import { World } from './world';
+import { blocks } from './blocks';
+
+const CENTER_SCREEN = new THREE.Vector2();
 
 export class Player {
   camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 100);
   cameraHelper = new THREE.CameraHelper(this.camera);
   controls = new PointerLockControls(this.camera, document.body);
-  
+
   height = 1.75;
   radius = 0.5;
   maxSpeed = 5;
@@ -15,6 +19,10 @@ export class Player {
   #worldVelocity = new THREE.Vector3();
   input = new THREE.Vector3();
 
+  raycaster = new THREE.Raycaster(new THREE.Vector3(), new THREE.Vector3(), 0, 3);
+  selectedCoords = null;
+  activeBlockid = blocks.dirt.id;
+  
   constructor(scene) {
     this.position.set(32, 32, 32);
     this.cameraHelper.visible = false;
@@ -29,11 +37,68 @@ export class Player {
     this.boundsHelper.visible = false;
     scene.add(this.boundsHelper);
 
+    // Helper used to highlight the currently active block
+    const selectionMaterial = new THREE.MeshBasicMaterial({
+      transparent: true,
+      opacity: 0.3,
+      color: 0xffffaa
+    });
+    const selectionGeometry = new THREE.BoxGeometry(1.01, 1.01, 1.01);
+    this.selectionHelper = new THREE.Mesh(selectionGeometry, selectionMaterial);
+    scene.add(this.selectionHelper);
+
     // Add event listeners for keyboard/mouse events
     document.addEventListener('keyup', this.onKeyUp.bind(this));
     document.addEventListener('keydown', this.onKeyDown.bind(this));
   }
   
+  /**
+   * Updates the state of the player
+   * @param {World} world 
+   */
+  update(world) {
+    this.updateBoundsHelper();
+    this.updateRaycaster(world);
+  }
+
+  /**
+   * Updates the raycaster used for block selection
+   * @param {World} world 
+   */
+  updateRaycaster(world) {
+    this.raycaster.setFromCamera(CENTER_SCREEN, this.camera);
+    const intersections = this.raycaster.intersectObject(world, true);
+  
+    if (intersections.length > 0) {
+      const intersection = intersections[0];
+
+      // Get the chunk associated with the selected block
+      const chunk = intersection.object.parent;
+
+      // Get the transformation matrix for the selected block
+      const blockMatrix = new THREE.Matrix4();
+      intersection.object.getMatrixAt(intersection.instanceId, blockMatrix);
+
+      // Set the selected coordinates to the origin of the chunk,
+      // then apply the transformation matrix of the block to get
+      // the block coordinates
+      this.selectedCoords = chunk.position.clone();
+      this.selectedCoords.applyMatrix4(blockMatrix);
+
+      if (this.activeBlockId !== blocks.empty.id) {
+        // If we are adding a block, move it 1 block over in the direction
+        // of where the ray intersected the cube
+        this.selectedCoords.add(intersection.normal);
+      }
+
+      this.selectionHelper.position.copy(this.selectedCoords);
+      this.selectionHelper.visible = true;
+    } else {
+      this.selectedCoords = null;
+      this.selectionHelper.visible = false;
+    }
+  }
+
   /**
    * Updates the state of the player based on the current user inputs
    * @param {Number} dt 
@@ -122,6 +187,15 @@ export class Player {
    */
   onKeyDown(event) {
     switch (event.code) {
+      case 'Digit0':
+      case 'Digit1':
+      case 'Digit2':
+      case 'Digit3':
+      case 'Digit4':
+      case 'Digit5':
+        this.activeBlockId = Number(event.key);
+        console.log(`activeBlockId = ${event.key}`)
+        break;
       case 'KeyW':
         this.input.z = this.maxSpeed;
         break;

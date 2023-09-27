@@ -43,8 +43,6 @@ export class Physics {
       this.detectCollisions(player, world);
       this.accumulator -= this.stepSize;
     }
-
-    player.updateBoundsHelper();
   }
   
   /**
