@@ -32,8 +32,8 @@ export class WorldChunk extends THREE.Group {
     this.initialize();
     this.generateResources(rng);
     this.generateTerrain(rng);
-    this.generateTrees(rng);
     this.generateClouds(rng);
+    this.generateTrees(rng);
     this.loadPlayerChanges();
     this.generateMeshes();
 

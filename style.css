@@ -12,3 +12,31 @@ body {
   color: white;
   margin: 8px;
 }
+
+#toolbar-container {
+  position: fixed;
+  bottom: 8px;
+  width: 100%;
+
+  display: flex;
+  justify-content: center;
+}
+
+#toolbar {
+  background-color: rgb(109, 109, 109);
+  border: 4px solid rgb(147, 147, 147);
+  padding: 8px;
+  display: flex;
+  justify-content: space-between;
+  column-gap: 12px;
+}
+
+.toolbar-icon {
+  width: 64px;
+  height: 64px;
+  outline: 4px solid rgb(58, 58, 58);;
+}
+
+.toolbar-icon.selected {
+  outline: 4px solid white;
+}

@@ -65,27 +65,38 @@ export class World extends THREE.Group {
   constructor(seed = 0) {
     super();
     this.seed = seed;
+
+    document.addEventListener('keydown', (ev) => {
+      switch (ev.code) {
+        case 'F1':
+          this.save();
+          break;
+        case 'F2':
+          this.load();
+          break;
+      }
+    });
   }
 
   /**
    * Clears existing world data and regenerates everything
    * @param {Player} player 
    */
-  regenerate(player) {
+  regenerate(playerPosition = new THREE.Vector3()) {
     this.children.forEach((obj) => {
       obj.disposeChildren();
     });
     this.clear();
-    this.update(player);
+    this.update(playerPosition);
   }
 
   /**
    * Updates the visible portions of the world based on the
    * current player position
-   * @param {Player} player 
+   * @param {THREE.Vector3} playerPosition
    */
-  update(player) {
-    const visibleChunks = this.getVisibleChunks(player);
+  update(playerPosition) {
+    const visibleChunks = this.getVisibleChunks(playerPosition);
     const chunksToAdd = this.getChunksToAdd(visibleChunks);
     this.removeUnusedChunks(visibleChunks);
     
@@ -97,12 +108,12 @@ export class World extends THREE.Group {
   /**
    * Returns an array containing the coordinates of the chunks that 
    * are current visible to the player
-   * @param {Player} player 
+   * @param {THREE.Vector3} playerPosition 
    * @returns {{ x: number, z: number}[]}
    */
-  getVisibleChunks(player) {
+  getVisibleChunks(playerPosition) {
     // Get the coordinates of the chunk the player is currently in
-    const coords = this.worldToChunkCoords(player.position.x, 0, player.position.z);
+    const coords = this.worldToChunkCoords(playerPosition.x, 0, playerPosition.z);
     
     const visibleChunks = [];
     for (let x = coords.chunk.x - this.drawDistance; x <= coords.chunk.x + this.drawDistance; x++) {
@@ -312,5 +323,24 @@ export class World extends THREE.Group {
       return chunk.userData.x === chunkX && 
              chunk.userData.z === chunkZ;
     });
+  }
+
+  /**
+   * Saves the world data to local storage
+   */
+  save() {
+    localStorage.setItem('minecraft_params', JSON.stringify(this.params));
+    localStorage.setItem('minecraft_data', JSON.stringify(this.dataStore.data));
+    alert('Game saved successfully');
+  }
+
+  /**
+   * Loads the game from disk
+   */
+  load() {
+    this.params = JSON.parse(localStorage.getItem('minecraft_params'));
+    this.dataStore.data = JSON.parse(localStorage.getItem('minecraft_data'));
+    alert('Game loaded successfully');
+    this.regenerate();
   }
 }
