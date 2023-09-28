@@ -29,6 +29,10 @@ export class Player {
     scene.add(this.camera);
     scene.add(this.cameraHelper);
 
+    // Set raycaster to use layer 0 so it doesn't interact with water mesh on layer 1
+    this.raycaster.layers.set(0);
+    this.camera.layers.enable(1);
+
     // Wireframe mesh visualizing the player's bounding cylinder
     this.boundsHelper = new THREE.Mesh(
       new THREE.CylinderGeometry(this.radius, this.radius, this.height, 16),
@@ -193,6 +197,10 @@ export class Player {
       case 'Digit3':
       case 'Digit4':
       case 'Digit5':
+      case 'Digit6':
+      case 'Digit7':
+      case 'Digit8':
+      case 'Digit9':
         this.activeBlockId = Number(event.key);
         console.log(`activeBlockId = ${event.key}`)
         break;

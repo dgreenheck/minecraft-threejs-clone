@@ -19,7 +19,7 @@ export class WorldChunk extends THREE.Group {
     this.size = size;
     this.params = params;
     this.dataStore = dataStore;
-    this.loaded = false;
+    this.loaded = false; 
   }
 
   /**
@@ -32,6 +32,8 @@ export class WorldChunk extends THREE.Group {
     this.initialize();
     this.generateResources(rng);
     this.generateTerrain(rng);
+    this.generateTrees(rng);
+    this.generateClouds(rng);
     this.loadPlayerChanges();
     this.generateMeshes();
 
@@ -111,7 +113,9 @@ export class WorldChunk extends THREE.Group {
         
         // Starting at the terrain height, fill in all the blocks below that height
         for (let y = 0; y < this.size.height; y++) {
-          if (y === height) {
+          if (y <= this.params.terrain.waterHeight && y <= height) {
+            this.setBlockId(x, y, z, blocks.sand.id);
+          } else if (y === height) {
             this.setBlockId(x, y, z, blocks.grass.id);
           // Fill in blocks with dirt if they aren't already filled with something else
           } else if (y < height && this.getBlock(x, y, z).id === blocks.empty.id) {
@@ -120,6 +124,81 @@ export class WorldChunk extends THREE.Group {
           } else if (y > height) {
             this.setBlockId(x, y, z, blocks.empty.id);
           }
+        }
+      }
+    }
+  }
+
+  /**
+   * Populate the world with trees
+   * @param {RNG} rng 
+   */
+  generateTrees(rng) {
+    const simplex = new SimplexNoise(rng);
+    const canopySize = this.params.trees.canopy.size.max;
+    for (let baseX = canopySize; baseX < this.size.width - canopySize; baseX++) {
+      for (let baseZ = canopySize; baseZ < this.size.width - canopySize; baseZ++) {
+        const n = simplex.noise(
+          this.position.x + baseX,
+          this.position.z + baseZ) * 0.5 + 0.5;
+        if (n < (1 - this.params.trees.frequency)) continue;
+
+        // Find the grass tile
+        for (let y = this.size.height - 1; y--; y >= 0) {
+          if (this.getBlock(baseX, y, baseZ).id !== blocks.grass.id) continue;
+
+          // We found grass, move one tile up
+          const baseY = y + 1;
+
+          // Create the trunk. First, determine the trunk height
+          const minH = this.params.trees.trunkHeight.min;
+          const maxH = this.params.trees.trunkHeight.max;
+          const trunkHeight = Math.round(rng.random() * (maxH - minH)) + minH;
+          const topY = baseY + trunkHeight;
+
+          // Fill in the blocks for the trunk
+          for (let y = baseY; y <= topY; y++) {
+            this.setBlockId(baseX, y, baseZ, blocks.tree.id);
+          }
+
+          // Create the leaves. First, determine the canopy radius R
+          const minR = this.params.trees.canopy.size.min;
+          const maxR = this.params.trees.canopy.size.max;
+          const R = Math.round(rng.random() * (maxR - minR)) + minR;
+
+          for (let x = -R; x <= R; x++) {
+            for (let y = -R; y <= R; y++) {
+              for (let z = -R; z <= R; z++) {
+                // Don't creates leaves outside the canopy radius
+                if (x * x + y * y + z * z > R * R) continue;
+                // Don't overwrite existing blocks
+                if (this.getBlock(baseX + x, topY + y, baseZ + z)?.id !== blocks.empty.id) continue;
+                // Add some randomness to break up the leaves a bit
+                if (rng.random() > this.params.trees.canopy.density) {
+                  this.setBlockId(baseX + x, topY + y, baseZ + z, blocks.leaves.id);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Creates happy little clouds
+   * @param {RNG} rng 
+   */
+  generateClouds(rng) {
+    const simplex = new SimplexNoise(rng);
+    for (let x = 0; x < this.size.width; x++) {
+      for (let z = 0; z < this.size.width; z++) {
+        const value = simplex.noise(
+          (this.position.x + x) / this.params.clouds.scale,
+          (this.position.z + z) / this.params.clouds.scale) * 0.5 + 0.5;
+  
+        if (value < this.params.clouds.density) {
+          this.setBlockId(x, this.size.height - 1, z, blocks.cloud.id);
         }
       }
     }
@@ -148,6 +227,8 @@ export class WorldChunk extends THREE.Group {
   generateMeshes() {
     this.disposeChildren();
     
+    this.generateWater();
+
     // Create lookup table of InstancedMesh's with the block id being the key
     const meshes = {};
     Object.values(blocks)
@@ -188,6 +269,29 @@ export class WorldChunk extends THREE.Group {
 
     // Add all instanced meshes to the scene
     this.add(...Object.values(meshes));
+  }
+
+  /**
+   * Creates a plane of water
+   */
+  generateWater() {
+    const waterMaterial = new THREE.MeshLambertMaterial({
+      color: 0x9090e0,
+      transparent: true,
+      opacity: 0.5,
+      side: THREE.DoubleSide
+    });
+    const waterMesh = new THREE.Mesh(new THREE.PlaneGeometry(), waterMaterial);
+    waterMesh.rotateX(-Math.PI / 2);
+    waterMesh.position.set(
+      this.size.width / 2,
+      this.params.terrain.waterHeight + 0.4,
+      this.size.width / 2
+    );
+    waterMesh.scale.set(this.size.width, this.size.width, 1);
+    waterMesh.layers.set(1);
+    
+    this.add(waterMesh);   
   }
 
   /**

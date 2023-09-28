@@ -33,7 +33,7 @@ export function setupUI(world, player, physics, scene) {
   terrainFolder.add(world.params.terrain, 'magnitude', 0, 1).name('Magnitude');
   terrainFolder.add(world.params.terrain, 'offset', 0, 1).name('Offset');
 
-  const resourcesFolder = gui.addFolder('Resources');
+  const resourcesFolder = worldFolder.addFolder('Resources');
   for (const resource of resources) {
     const resourceFolder = resourcesFolder.addFolder(resource.name);
     resourceFolder.add(resource, 'scarcity', 0, 1).name('Scarcity');
@@ -43,7 +43,15 @@ export function setupUI(world, player, physics, scene) {
     scaleFolder.add(resource.scale, 'z', 10, 100).name('Z Scale');
   }
 
-  terrainFolder.onFinishChange((event) => {
+  const treesFolder = worldFolder.addFolder('Trees');
+  treesFolder.add(world.params.trees, 'frequency', 0, 0.1).name('Frequency');
+  treesFolder.add(world.params.trees.trunkHeight, 'min', 0, 10, 1).name('Min Trunk Height');
+  treesFolder.add(world.params.trees.trunkHeight, 'max', 0, 10, 1).name('Max Trunk Height');
+  treesFolder.add(world.params.trees.canopy.size, 'min', 0, 10, 1).name('Min Canopy Size');
+  treesFolder.add(world.params.trees.canopy.size, 'max', 0, 10, 1).name('Max Canopy Size');
+  treesFolder.add(world.params.trees.canopy, 'density', 0, 1).name('Canopy Density');
+
+  worldFolder.onFinishChange((event) => {
     world.regenerate(player);
   });
 }
