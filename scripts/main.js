@@ -5,7 +5,6 @@ import { World } from './world';
 import { Player } from './player';
 import { Physics } from './physics';
 import { setupUI } from './ui';
-import { blocks } from './blocks';
 import { ModelLoader } from './modelLoader';
 
 // Renderer setup

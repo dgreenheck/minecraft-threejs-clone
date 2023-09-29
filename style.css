@@ -1,6 +1,18 @@
+@font-face {
+  font-family: 'Minecraft';
+  src: url('/fonts/Minecraft.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
 /* remove white border from page */
 body {
-  margin: 0
+  margin: 0;
+  font-family: 'Minecraft';
+}
+
+h1 {
+  font-size: 3em;
 }
 
 #info {
@@ -39,4 +51,29 @@ body {
 
 .toolbar-icon.selected {
   outline: 4px solid white;
+}
+
+#overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  background-color: #00000080;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  font-size: 2em;
+  color: white;
+  text-align: center;
+}
+
+#status {
+  position: fixed;
+  bottom: 8px;
+  left: 8px;
+  font-size: 2em;
+  color: white;
 }

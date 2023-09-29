@@ -43,6 +43,17 @@ export class Player {
     scene.add(this.camera);
     scene.add(this.cameraHelper);
 
+    // Hide/show instructions based on pointer controls locking/unlocking
+    this.controls.addEventListener('lock', function () {
+      console.log('locked');
+      document.getElementById('overlay').style.visibility = 'hidden';
+    });
+
+    this.controls.addEventListener('unlock', function () {
+      document.getElementById('overlay').style.visibility = 'visible';
+    });
+
+
     // The tool is parented to the camera
     this.camera.add(this.tool.container);
 
@@ -136,6 +147,11 @@ export class Player {
       this.controls.moveRight(this.velocity.x * dt);
       this.controls.moveForward(this.velocity.z * dt);
       this.position.y += this.velocity.y * dt;
+
+      if (this.position.y < 0) {
+        this.position.y = 0;
+        this.velocity.y = 0;
+      }
     }
     
     document.getElementById('info-player-position').innerHTML = this.toString();
@@ -208,16 +224,6 @@ export class Player {
    */
   onKeyUp(event) {
     switch (event.code) {
-      case 'Escape':
-        if (event.repeat) break;
-        if (this.controls.isLocked) {
-          console.log('unlocking controls');
-          this.controls.unlock();
-        } else {
-          console.log('locking controls');
-          this.controls.lock();
-        }
-        break;
       case 'KeyW':
         this.input.z = 0;
         break;
@@ -238,6 +244,10 @@ export class Player {
    * @param {KeyboardEvent} event 
    */
   onKeyDown(event) {
+    if (!this.controls.isLocked) {
+      this.controls.lock();
+    }
+
     switch (event.code) {
       case 'Digit0':
       case 'Digit1':
@@ -248,7 +258,6 @@ export class Player {
       case 'Digit6':
       case 'Digit7':
       case 'Digit8':
-      case 'Digit9':
         // Update the selected toolbar icon
         document.getElementById(`toolbar-${this.activeBlockId}`)?.classList.remove('selected');
         document.getElementById(`toolbar-${event.key}`)?.classList.add('selected');
@@ -289,34 +298,36 @@ export class Player {
    * @param {MouseEvent} event 
    */
   onMouseDown(event) {
-    if (this.controls.isLocked && this.selectedCoords) {
-      if (this.activeBlockId !== blocks.empty.id) {
-        this.world.addBlock(
-          this.selectedCoords.x,
-          this.selectedCoords.y,
-          this.selectedCoords.z,
-          this.activeBlockId
-        );
-      } else {
-        this.world.removeBlock(
-          this.selectedCoords.x,
-          this.selectedCoords.y,
-          this.selectedCoords.z
-        );
-      }
+    if (this.controls.isLocked) {
+      if (this.selectedCoords) {
+        if (this.activeBlockId !== blocks.empty.id) {
+          this.world.addBlock(
+            this.selectedCoords.x,
+            this.selectedCoords.y,
+            this.selectedCoords.z,
+            this.activeBlockId
+          );
+        } else {
+          this.world.removeBlock(
+            this.selectedCoords.x,
+            this.selectedCoords.y,
+            this.selectedCoords.z
+          );
+        }
 
-      // If the tool isn't currently animating, trigger the animation
-      if (!this.tool.animate) {
-        this.tool.animate = true;
-        this.tool.animationStart = performance.now();
+        // If the tool isn't currently animating, trigger the animation
+        if (!this.tool.animate) {
+          this.tool.animate = true;
+          this.tool.animationStart = performance.now();
 
-        // Clear the existing timeout so it doesn't cancel our new animation
-        clearTimeout(this.tool.animation);
+          // Clear the existing timeout so it doesn't cancel our new animation
+          clearTimeout(this.tool.animation);
 
-        // Stop the animation after 1.5 cycles
-        this.tool.animation = setTimeout(() => {
-          this.tool.animate = false;
-        }, 3 * Math.PI / this.tool.animationSpeed);
+          // Stop the animation after 1.5 cycles
+          this.tool.animation = setTimeout(() => {
+            this.tool.animate = false;
+          }, 3 * Math.PI / this.tool.animationSpeed);
+        }
       }
     }
   }

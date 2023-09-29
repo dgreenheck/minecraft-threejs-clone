@@ -22,8 +22,8 @@ export class World extends THREE.Group {
    * Width and height of a single chunk of terrain
    */
   chunkSize = {
-    width: 24,
-    height: 32
+    width: 32,
+    height: 24
   }
 
   /**
@@ -331,7 +331,8 @@ export class World extends THREE.Group {
   save() {
     localStorage.setItem('minecraft_params', JSON.stringify(this.params));
     localStorage.setItem('minecraft_data', JSON.stringify(this.dataStore.data));
-    alert('Game saved successfully');
+    document.getElementById('status').innerText = "Game Saved";
+    setTimeout(() => document.getElementById('status').innerText = "", 3000);
   }
 
   /**
@@ -340,7 +341,8 @@ export class World extends THREE.Group {
   load() {
     this.params = JSON.parse(localStorage.getItem('minecraft_params'));
     this.dataStore.data = JSON.parse(localStorage.getItem('minecraft_data'));
-    alert('Game loaded successfully');
+    document.getElementById('status').innerText = "Game Loaded";
+    setTimeout(() => document.getElementById('status').innerText = "", 3000);
     this.regenerate();
   }
 }

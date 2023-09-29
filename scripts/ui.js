@@ -54,4 +54,16 @@ export function setupUI(world, player, physics, scene) {
   worldFolder.onFinishChange((event) => {
     world.regenerate(player);
   });
+
+  document.addEventListener('keydown', (event) => {
+    console.log(event);
+    if (event.code === 'KeyU') {
+      console.log(gui._hidden);
+      if (gui._hidden) {
+        gui.show();
+      } else {
+        gui.hide();
+      }
+    }
+  })
 }
