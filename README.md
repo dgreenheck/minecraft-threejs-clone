@@ -2,7 +2,7 @@
 
 This is a simple Minecraft clone written with 🍦 Vanilla JavaScript + Three.js.
 
-![Screenshot 2023-09-24 at 2 59 14 PM](https://github.com/dgreenheck/minecraft-threejs-clone/assets/3814912/72c8c92e-0fb6-4de3-b166-c3cbb7c9db75)
+![Screenshot 2023-09-29 at 12 14 34 AM](https://github.com/dgreenheck/minecraft-threejs-clone/assets/3814912/c39c6b2a-f6e4-4f43-824c-d0e727539170)
 
 ## Project Goal
 
