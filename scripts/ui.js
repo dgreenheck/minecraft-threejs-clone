@@ -27,29 +27,33 @@ export function setupUI(world, player, physics, scene) {
   worldFolder.add(scene.fog, 'near', 1, 200, 1).name('Fog Near');
   worldFolder.add(scene.fog, 'far', 1, 200, 1).name('Fog Far');
 
-  const terrainFolder = worldFolder.addFolder('Terrain');
+  const terrainFolder = worldFolder.addFolder('Terrain').close();
   terrainFolder.add(world.params, 'seed', 0, 10000, 1).name('Seed');
   terrainFolder.add(world.params.terrain, 'scale', 10, 100).name('Scale');
   terrainFolder.add(world.params.terrain, 'magnitude', 0, 1).name('Magnitude');
-  terrainFolder.add(world.params.terrain, 'offset', 0, 1).name('Offset');
+  terrainFolder.add(world.params.terrain, 'offset', 0, 1).name('Ground Offset');
+  terrainFolder.add(world.params.terrain, 'waterHeight', 0, 16).name('Water Offset');
 
-  const resourcesFolder = worldFolder.addFolder('Resources');
+  const resourcesFolder = worldFolder.addFolder('Resources').close();
   for (const resource of resources) {
     const resourceFolder = resourcesFolder.addFolder(resource.name);
     resourceFolder.add(resource, 'scarcity', 0, 1).name('Scarcity');
-    const scaleFolder = resourceFolder.addFolder('Scale').close();
-    scaleFolder.add(resource.scale, 'x', 10, 100).name('X Scale');
-    scaleFolder.add(resource.scale, 'y', 10, 100).name('Y Scale');
-    scaleFolder.add(resource.scale, 'z', 10, 100).name('Z Scale');
+    resourceFolder.add(resource.scale, 'x', 10, 100).name('Scale X');
+    resourceFolder.add(resource.scale, 'y', 10, 100).name('Scale Y');
+    resourceFolder.add(resource.scale, 'z', 10, 100).name('Scale Z');
   }
 
-  const treesFolder = worldFolder.addFolder('Trees');
+  const treesFolder = worldFolder.addFolder('Trees').close();
   treesFolder.add(world.params.trees, 'frequency', 0, 0.1).name('Frequency');
   treesFolder.add(world.params.trees.trunkHeight, 'min', 0, 10, 1).name('Min Trunk Height');
   treesFolder.add(world.params.trees.trunkHeight, 'max', 0, 10, 1).name('Max Trunk Height');
   treesFolder.add(world.params.trees.canopy.size, 'min', 0, 10, 1).name('Min Canopy Size');
   treesFolder.add(world.params.trees.canopy.size, 'max', 0, 10, 1).name('Max Canopy Size');
   treesFolder.add(world.params.trees.canopy, 'density', 0, 1).name('Canopy Density');
+
+  const cloudsFolder = worldFolder.addFolder('Clouds').close();
+  cloudsFolder.add(world.params.clouds, 'density', 0, 1).name('Density');
+  cloudsFolder.add(world.params.clouds, 'scale', 1, 100, 1).name('Scale');
 
   worldFolder.onFinishChange((event) => {
     world.regenerate(player);
