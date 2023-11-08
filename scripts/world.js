@@ -238,6 +238,9 @@ export class World extends THREE.Group {
     const coords = this.worldToChunkCoords(x, y, z);
     const chunk = this.getChunk(coords.chunk.x, coords.chunk.z);
   
+    // Don't allow removing the first layer of blocks
+    if (coords.block.y === 0) return;
+
     if (chunk) {
       chunk.removeBlock(coords.block.x, coords.block.y, coords.block.z);
 

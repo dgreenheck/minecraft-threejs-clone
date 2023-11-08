@@ -282,7 +282,7 @@ export class Player {
         break;
       case 'KeyR':
         if (this.repeat) break;
-        this.position.set(32, 32, 32);
+        this.position.y = 32;
         this.velocity.set(0, 0, 0);
         break;
       case 'Space':
@@ -299,19 +299,21 @@ export class Player {
    */
   onMouseDown(event) {
     if (this.controls.isLocked) {
+      // Is a block selected?
       if (this.selectedCoords) {
-        if (this.activeBlockId !== blocks.empty.id) {
+        // If active block is an empty block, then we are in delete mode
+        if (this.activeBlockId === blocks.empty.id) {
+          this.world.removeBlock(
+            this.selectedCoords.x,
+            this.selectedCoords.y,
+            this.selectedCoords.z
+          );
+        } else {
           this.world.addBlock(
             this.selectedCoords.x,
             this.selectedCoords.y,
             this.selectedCoords.z,
             this.activeBlockId
-          );
-        } else {
-          this.world.removeBlock(
-            this.selectedCoords.x,
-            this.selectedCoords.y,
-            this.selectedCoords.z
           );
         }
 
