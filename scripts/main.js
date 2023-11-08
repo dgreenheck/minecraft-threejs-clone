@@ -88,8 +88,12 @@ function animate() {
   sun.position.sub(new THREE.Vector3(-50, -50, -50));
   sun.target.position.copy(player.camera.position);
 
-  physics.update(dt, player, world);
-  player.update(world);
+  // Only update physics when player controls are locked
+  if (player.controls.isLocked) {
+    physics.update(dt, player, world);
+    player.update(world);
+  }
+
   world.update(player.position);
   renderer.render(scene, player.controls.isLocked ? player.camera : orbitCamera);
   stats.update();
