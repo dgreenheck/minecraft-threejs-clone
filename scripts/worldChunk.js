@@ -1,9 +1,12 @@
 import * as THREE from 'three';
 import { SimplexNoise } from 'three/examples/jsm/math/SimplexNoise.js';
 import { RNG } from './rng';
-import { blocks, resources } from './blocks.js';
+import { blocks, resources, getTextureIndex } from './blocks.js';
 
-const geometry = new THREE.BoxGeometry(1, 1, 1);
+let texAtlas = new THREE.TextureLoader().load('textures/atlas.png');
+texAtlas.colorSpace = THREE.SRGBColorSpace;
+texAtlas.magFilter = THREE.NearestFilter;
+texAtlas.minFilter = THREE.NearestFilter;
 
 export class WorldChunk extends THREE.Group {
   /**
@@ -19,15 +22,63 @@ export class WorldChunk extends THREE.Group {
     this.size = size;
     this.params = params;
     this.dataStore = dataStore;
-    this.loaded = false; 
+    this.loaded = false;
+
+    this.geometry = new THREE.BoxGeometry(1, 1, 1);
+    this.material = new THREE.MeshLambertMaterial({
+      onBeforeCompile: shader => {
+        shader.uniforms.texAtlas = { value: texAtlas };
+        shader.vertexShader = `
+    	attribute float texIdx;
+    	varying float vTexIdx;
+      ${shader.vertexShader}
+    `.replace(
+          `void main() {`,
+          `void main() {
+      	vTexIdx = texIdx;
+      `
+        );
+
+        shader.fragmentShader = `
+    	uniform sampler2D texAtlas;
+    	varying float vTexIdx;
+      ${shader.fragmentShader}
+    `.replace(
+          `#include <map_fragment>`,
+          `#include <map_fragment>
+      
+        vec2 texOffset = vec2(
+        	mod(vTexIdx, 16.0),
+          floor(vTexIdx / 16.0)
+        );
+        
+       	vec2 blockUv = vec2(
+        	0.0625 * (texOffset.x + vUv.s), 
+          1.0 - 0.0625 * (texOffset.y + vUv.t)
+        ); 
+        
+        vec4 blockColor = texture(texAtlas, blockUv);
+        diffuseColor *= blockColor;
+      `
+        );
+      }
+    });
+    this.material.defines = { "USE_UV": "" };
+
+    const maxCount = this.size.width * this.size.width * this.size.height;
+    this.mesh = new THREE.InstancedMesh(this.geometry, this.material, maxCount);
+    this.mesh.count = 0;
+    this.mesh.castShadow = true;
+    this.mesh.receiveShadow = true;
+
+    this.texIdx = new Float32Array(maxCount).fill(0);
+    this.mesh.geometry.setAttribute("texIdx", new THREE.InstancedBufferAttribute(this.texIdx, 1));
   }
 
   /**
    * Generates the world data and meshes
    */
   generate() {
-    const start = performance.now();
-
     const rng = new RNG(this.params.seed);
     this.initialize();
     this.generateResources(rng);
@@ -35,11 +86,9 @@ export class WorldChunk extends THREE.Group {
     this.generateClouds(rng);
     this.generateTrees(rng);
     this.loadPlayerChanges();
-    this.generateMeshes();
+    this.generateBlockInstances();
 
     this.loaded = true;
-
-    console.log(`Loaded chunk in ${performance.now() - start}ms`);
   }
 
   /**
@@ -74,8 +123,8 @@ export class WorldChunk extends THREE.Group {
         for (let y = 0; y < this.size.height; y++) {
           for (let z = 0; z < this.size.width; z++) {
             const n = simplex.noise3d(
-              (this.position.x + x) / resource.scale.x, 
-              (this.position.y + y) / resource.scale.y, 
+              (this.position.x + x) / resource.scale.x,
+              (this.position.y + y) / resource.scale.y,
               (this.position.z + z) / resource.scale.z);
 
             if (n > resource.scarcity) {
@@ -110,17 +159,17 @@ export class WorldChunk extends THREE.Group {
 
         // Clamp between 0 and max height
         height = Math.max(0, Math.min(Math.floor(height), this.size.height - 1));
-        
+
         // Starting at the terrain height, fill in all the blocks below that height
         for (let y = 0; y < this.size.height; y++) {
           if (y <= this.params.terrain.waterHeight && y <= height) {
             this.setBlockId(x, y, z, blocks.sand.id);
           } else if (y === height) {
             this.setBlockId(x, y, z, blocks.grass.id);
-          // Fill in blocks with dirt if they aren't already filled with something else
+            // Fill in blocks with dirt if they aren't already filled with something else
           } else if (y < height && this.getBlock(x, y, z).id === blocks.empty.id) {
             this.setBlockId(x, y, z, blocks.dirt.id);
-          // Clear everything above
+            // Clear everything above
           } else if (y > height) {
             this.setBlockId(x, y, z, blocks.empty.id);
           }
@@ -196,7 +245,7 @@ export class WorldChunk extends THREE.Group {
         const value = simplex.noise(
           (this.position.x + x) / this.params.clouds.scale,
           (this.position.z + z) / this.params.clouds.scale) * 0.5 + 0.5;
-  
+
         if (value < this.params.clouds.density) {
           this.setBlockId(x, this.size.height - 1, z, blocks.cloud.id);
         }
@@ -224,24 +273,9 @@ export class WorldChunk extends THREE.Group {
   /**
    * Generates the meshes from the world data
    */
-  generateMeshes() {
+  generateBlockInstances() {
     this.disposeChildren();
-    
     this.generateWater();
-
-    // Create lookup table of InstancedMesh's with the block id being the key
-    const meshes = {};
-    Object.values(blocks)
-      .filter((blockType) => blockType.id !== blocks.empty.id)
-      .forEach((blockType) => {
-        const maxCount = this.size.width * this.size.width * this.size.height;
-        const mesh = new THREE.InstancedMesh(geometry, blockType.material, maxCount);
-        mesh.name = blockType.id;
-        mesh.count = 0;
-        mesh.castShadow = true;
-        mesh.receiveShadow = true;
-        meshes[blockType.id] = mesh;
-    });
 
     // Add instances for each non-empty block
     const matrix = new THREE.Matrix4();
@@ -249,26 +283,26 @@ export class WorldChunk extends THREE.Group {
       for (let y = 0; y < this.size.height; y++) {
         for (let z = 0; z < this.size.width; z++) {
           const blockId = this.getBlock(x, y, z).id;
+          const block = Object.values(blocks).find(x => x.id === blockId);
 
           // Ignore empty blocks
           if (blockId === blocks.empty.id) continue;
 
-          const mesh = meshes[blockId];
-          const instanceId = mesh.count;
+          const instanceId = this.mesh.count;
 
           // Create a new instance if block is not obscured by other blocks
           if (!this.isBlockObscured(x, y, z)) {
             matrix.setPosition(x, y, z);
-            mesh.setMatrixAt(instanceId, matrix);
+            this.texIdx[instanceId] = block.textureIndex;
+            this.mesh.setMatrixAt(instanceId, matrix);
             this.setBlockInstanceId(x, y, z, instanceId);
-            mesh.count++;
+            this.mesh.count++;
           }
         }
       }
     }
 
-    // Add all instanced meshes to the scene
-    this.add(...Object.values(meshes));
+    this.add(this.mesh);
   }
 
   /**
@@ -290,8 +324,8 @@ export class WorldChunk extends THREE.Group {
     );
     waterMesh.scale.set(this.size.width, this.size.width, 1);
     waterMesh.layers.set(1);
-    
-    this.add(waterMesh);   
+
+    this.add(waterMesh);
   }
 
   /**
@@ -339,17 +373,17 @@ export class WorldChunk extends THREE.Group {
     // If this block is non-empty and does not already have an instance, create a new one
     if (block && block.id !== blocks.empty.id && !block.instanceId) {
       // Append a new instance to the end of our InstancedMesh
-      const mesh = this.children.find((instanceMesh) => instanceMesh.name === block.id);
-      const instanceId = mesh.count++;
+      const instanceId = this.mesh.count++;
       this.setBlockInstanceId(x, y, z, instanceId);
 
       // Update the appropriate instanced mesh
       // Also re-compute the bounding sphere so raycasting works
       const matrix = new THREE.Matrix4();
       matrix.setPosition(x, y, z);
-      mesh.setMatrixAt(instanceId, matrix);
-      mesh.instanceMatrix.needsUpdate = true;
-      mesh.computeBoundingSphere();
+      this.texIdx[instanceId] = getTextureIndex(block.id);
+      this.mesh.setMatrixAt(instanceId, matrix);
+      this.mesh.instanceMatrix.needsUpdate = true;
+      this.mesh.computeBoundingSphere();
     }
   }
 
@@ -366,8 +400,6 @@ export class WorldChunk extends THREE.Group {
 
     if (block.id === blocks.empty.id || !block.instanceId) return;
 
-    // Get the mesh and instance id of the block
-    const mesh = this.children.find((instanceMesh) => instanceMesh.name === block.id);
     const instanceId = block.instanceId;
 
     // We can't remove an instance directly, so we swap it with the last instance
@@ -375,7 +407,7 @@ export class WorldChunk extends THREE.Group {
     //   1. Swap the matrix of the last instance with the matrix at `instanceId`
     //   2. Set the instanceId for the last instance to `instanceId`
     const lastMatrix = new THREE.Matrix4();
-    mesh.getMatrixAt(mesh.count - 1, lastMatrix);
+    this.mesh.getMatrixAt(this.mesh.count - 1, lastMatrix);
 
     // Also need to get the block coordinates of the instance
     // to update the instance id for that block
@@ -384,15 +416,17 @@ export class WorldChunk extends THREE.Group {
     this.setBlockInstanceId(v.x, v.y, v.z, instanceId);
 
     // Swap the transformation matrices
-    mesh.setMatrixAt(instanceId, lastMatrix);
+    this.mesh.setMatrixAt(instanceId, lastMatrix);
+
+    this.texIdx[instanceId] = this.texIdx[this.mesh.count - 1];
 
     // Decrease the mesh count to "delete" the block
-    mesh.count--;
+    this.mesh.count--;
 
     // Notify the instanced mesh we updated the instance matrix
     // Also re-compute the bounding sphere so raycasting works
-    mesh.instanceMatrix.needsUpdate = true;
-    mesh.computeBoundingSphere();
+    this.mesh.instanceMatrix.needsUpdate = true;
+    this.mesh.computeBoundingSphere();
 
     this.setBlockInstanceId(x, y, z, undefined);
   }
@@ -411,7 +445,7 @@ export class WorldChunk extends THREE.Group {
       return null;
     }
   }
-  
+
 
   /**
    * Sets the block id for the block at (x, y, z)
@@ -425,7 +459,7 @@ export class WorldChunk extends THREE.Group {
       this.data[x][y][z].id = id;
     }
   }
-  
+
 
   /**
    * Sets the block instance id for the block at (x, y, z)
@@ -439,7 +473,7 @@ export class WorldChunk extends THREE.Group {
       this.data[x][y][z].instanceId = instanceId;
     }
   }
-  
+
   /**
    * Checks if the (x, y, z) coordinates are within bounds
    * @param {number} x 
@@ -451,7 +485,7 @@ export class WorldChunk extends THREE.Group {
     if (x >= 0 && x < this.size.width &&
       y >= 0 && y < this.size.height &&
       z >= 0 && z < this.size.width) {
-      return true; 
+      return true;
     } else {
       return false;
     }
@@ -471,14 +505,14 @@ export class WorldChunk extends THREE.Group {
     const right = this.getBlock(x - 1, y, z)?.id ?? blocks.empty.id;
     const forward = this.getBlock(x, y, z + 1)?.id ?? blocks.empty.id;
     const back = this.getBlock(x, y, z - 1)?.id ?? blocks.empty.id;
-  
+
     // If any of the block's sides is exposed, it is not obscured
     if (up === blocks.empty.id ||
-        down === blocks.empty.id || 
-        left === blocks.empty.id || 
-        right === blocks.empty.id || 
-        forward === blocks.empty.id || 
-        back === blocks.empty.id) {
+      down === blocks.empty.id ||
+      left === blocks.empty.id ||
+      right === blocks.empty.id ||
+      forward === blocks.empty.id ||
+      back === blocks.empty.id) {
       return false;
     } else {
       return true;
