@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { SimplexNoise } from 'three/examples/jsm/math/SimplexNoise.js';
 import { RNG } from './rng';
-import { blocks, resources, getTextureIndex } from './blocks.js';
+import { blocks, resources, getTextureIndex, TextureOffset } from './blocks.js';
 
 let texAtlas = new THREE.TextureLoader().load('textures/atlas.png');
 texAtlas.colorSpace = THREE.SRGBColorSpace;
@@ -25,53 +25,21 @@ export class WorldChunk extends THREE.Group {
     this.loaded = false;
 
     this.geometry = new THREE.BoxGeometry(1, 1, 1);
-    this.material = new THREE.MeshLambertMaterial({
-      onBeforeCompile: shader => {
-        shader.uniforms.texAtlas = { value: texAtlas };
-        shader.vertexShader = `
-    	attribute float texIdx;
-    	varying float vTexIdx;
-      ${shader.vertexShader}
-    `.replace(
-          `void main() {`,
-          `void main() {
-      	vTexIdx = texIdx;
-      `
-        );
-
-        shader.fragmentShader = `
-    	uniform sampler2D texAtlas;
-    	varying float vTexIdx;
-      ${shader.fragmentShader}
-    `.replace(
-          `#include <map_fragment>`,
-          `#include <map_fragment>
-      
-        vec2 texOffset = vec2(
-        	mod(vTexIdx, 16.0),
-          floor(vTexIdx / 16.0)
-        );
-        
-       	vec2 blockUv = vec2(
-        	0.0625 * (texOffset.x + vUv.s), 
-          1.0 - 0.0625 * (texOffset.y + vUv.t)
-        ); 
-        
-        vec4 blockColor = texture(texAtlas, blockUv);
-        diffuseColor *= blockColor;
-      `
-        );
-      }
-    });
-    this.material.defines = { "USE_UV": "" };
-
+    
     const maxCount = this.size.width * this.size.width * this.size.height;
-    this.mesh = new THREE.InstancedMesh(this.geometry, this.material, maxCount);
+    this.mesh = new THREE.InstancedMesh(this.geometry, [
+      this.createInstanceMaterial(TextureOffset.side), // right
+      this.createInstanceMaterial(TextureOffset.side), // left
+      this.createInstanceMaterial(TextureOffset.top), // top
+      this.createInstanceMaterial(TextureOffset.bottom), // bottom
+      this.createInstanceMaterial(TextureOffset.side), // front
+      this.createInstanceMaterial(TextureOffset.side) // back
+    ], maxCount);
     this.mesh.count = 0;
     this.mesh.castShadow = true;
     this.mesh.receiveShadow = true;
 
-    this.texIdx = new Float32Array(maxCount).fill(0);
+    this.texIdx = new Uint32Array(maxCount).fill(0);
     this.mesh.geometry.setAttribute("texIdx", new THREE.InstancedBufferAttribute(this.texIdx, 1));
   }
 
@@ -79,6 +47,8 @@ export class WorldChunk extends THREE.Group {
    * Generates the world data and meshes
    */
   generate() {
+    const start = performance.now();
+
     const rng = new RNG(this.params.seed);
     this.initialize();
     this.generateResources(rng);
@@ -87,6 +57,8 @@ export class WorldChunk extends THREE.Group {
     this.generateTrees(rng);
     this.loadPlayerChanges();
     this.generateBlockInstances();
+
+    //console.log(`Chunk generated in ${performance.now() - start} ms`);
 
     this.loaded = true;
   }
@@ -271,6 +243,29 @@ export class WorldChunk extends THREE.Group {
   }
 
   /**
+   * Creates a plane of water
+   */
+  generateWater() {
+    const waterMaterial = new THREE.MeshLambertMaterial({
+      color: 0x9090e0,
+      transparent: true,
+      opacity: 0.5,
+      side: THREE.DoubleSide
+    });
+    const waterMesh = new THREE.Mesh(new THREE.PlaneGeometry(), waterMaterial);
+    waterMesh.rotateX(-Math.PI / 2);
+    waterMesh.position.set(
+      this.size.width / 2,
+      this.params.terrain.waterHeight + 0.4,
+      this.size.width / 2
+    );
+    waterMesh.scale.set(this.size.width, this.size.width, 1);
+    waterMesh.layers.set(1);
+
+    this.add(waterMesh);
+  }
+
+  /**
    * Generates the meshes from the world data
    */
   generateBlockInstances() {
@@ -305,27 +300,53 @@ export class WorldChunk extends THREE.Group {
     this.add(this.mesh);
   }
 
-  /**
-   * Creates a plane of water
-   */
-  generateWater() {
-    const waterMaterial = new THREE.MeshLambertMaterial({
-      color: 0x9090e0,
-      transparent: true,
-      opacity: 0.5,
-      side: THREE.DoubleSide
-    });
-    const waterMesh = new THREE.Mesh(new THREE.PlaneGeometry(), waterMaterial);
-    waterMesh.rotateX(-Math.PI / 2);
-    waterMesh.position.set(
-      this.size.width / 2,
-      this.params.terrain.waterHeight + 0.4,
-      this.size.width / 2
-    );
-    waterMesh.scale.set(this.size.width, this.size.width, 1);
-    waterMesh.layers.set(1);
+  createInstanceMaterial(offset) {
+    const material = new THREE.MeshLambertMaterial({
+      onBeforeCompile: (shader) => {
+        shader.uniforms.texAtlas = { value: texAtlas };
+        shader.vertexShader = `
+          attribute uint texIdx;
+          varying float vTexIdx;
+          ${shader.vertexShader}
+        `.replace(
+          `void main() {`,
+          `void main() {
+            // Grab a specific byte of the texture index based
+            // on which side of the block we are rendering
+          	vTexIdx = float((texIdx >> ${offset}) & uint(0xff));
+          `
+        );
 
-    this.add(waterMesh);
+        shader.fragmentShader = `
+          uniform sampler2D texAtlas;
+          varying float vTexIdx;
+          ${shader.fragmentShader}
+        `.replace(
+          `#include <map_fragment>`,
+          `#include <map_fragment>
+          
+            vec2 texOffset = vec2(
+              mod(vTexIdx, 16.0),
+              floor(vTexIdx / 16.0)
+            );
+            
+            vec2 blockUv = vec2(
+              0.0625 * (texOffset.x + vUv.s), 
+              1.0 - 0.0625 * (texOffset.y + (1.0 - vUv.t))
+            ); 
+            
+            vec4 blockColor = texture(texAtlas, blockUv);
+            diffuseColor = blockColor;
+            diffuseColor *= vec4(1, 1, 1, 1);
+          `
+        );
+      }
+    });
+
+    material.customProgramCacheKey = () => offset;
+    material.defines = { "USE_UV": "" };
+
+    return material;
   }
 
   /**
@@ -354,7 +375,7 @@ export class WorldChunk extends THREE.Group {
   removeBlock(x, y, z) {
     const block = this.getBlock(x, y, z);
     if (block && block.id !== blocks.empty.id) {
-      console.log(`Removing block at X:${x} Y:${y} Z:${z}`);
+      //console.log(`Removing block at X:${x} Y:${y} Z:${z}`);
       this.deleteBlockInstance(x, y, z);
       this.setBlockId(x, y, z, blocks.empty.id);
       this.dataStore.set(this.position.x, this.position.z, x, y, z, blocks.empty.id);
@@ -380,7 +401,12 @@ export class WorldChunk extends THREE.Group {
       // Also re-compute the bounding sphere so raycasting works
       const matrix = new THREE.Matrix4();
       matrix.setPosition(x, y, z);
+
+      // Add texture index to end of attribute array data
       this.texIdx[instanceId] = getTextureIndex(block.id);
+      const texAttr = this.geometry.getAttribute("texIdx");
+      texAttr.needsUpdate = true;
+
       this.mesh.setMatrixAt(instanceId, matrix);
       this.mesh.instanceMatrix.needsUpdate = true;
       this.mesh.computeBoundingSphere();
@@ -418,7 +444,11 @@ export class WorldChunk extends THREE.Group {
     // Swap the transformation matrices
     this.mesh.setMatrixAt(instanceId, lastMatrix);
 
+    // Swap texture data for deleted instance with the  end
+    // of attribute array data
     this.texIdx[instanceId] = this.texIdx[this.mesh.count - 1];
+    const texAttr = this.geometry.getAttribute("texIdx");
+    texAttr.needsUpdate = true;
 
     // Decrease the mesh count to "delete" the block
     this.mesh.count--;

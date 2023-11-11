@@ -11,21 +11,24 @@ import { Physics } from './physics';
 export function setupUI(world, player, physics, scene) {
   const gui = new GUI();
 
+  const graphicsFolder = gui.addFolder('Graphics');
+  graphicsFolder.add(world, 'drawDistance', 0, 5, 1).name('Draw Distance');
+  graphicsFolder.add(scene.fog, 'near', 10, 1000, 10).name('Fog Near');
+  graphicsFolder.add(scene.fog, 'far', 10, 1000, 10).name('Fog Far');
+
+  const physicsFolder = gui.addFolder('Physics');
+  physicsFolder.add(physics.helpers, 'visible').name('Visualize Collisions');
+  physicsFolder.add(physics, 'simulationRate', 10, 1000).name('Sim Rate');
+
   const playerFolder = gui.addFolder('Player');
   playerFolder.add(player, 'maxSpeed', 1, 20, 0.1).name('Max Speed');
   playerFolder.add(player, 'jumpSpeed', 1, 10, 0.1).name('Jump Speed');
   playerFolder.add(player.boundsHelper, 'visible').name('Show Player Bounds');
   playerFolder.add(player.cameraHelper, 'visible').name('Show Camera Helper');
 
-  const physicsFolder = gui.addFolder('Physics');
-  physicsFolder.add(physics.helpers, 'visible').name('Visualize Collisions');
-  physicsFolder.add(physics, 'simulationRate', 10, 1000).name('Sim Rate');
-
   const worldFolder = gui.addFolder('World');
-  worldFolder.add(world, 'drawDistance', 0, 5, 1).name('Draw Distance');
   worldFolder.add(world, 'asyncLoading').name('Async Loading');
-  worldFolder.add(scene.fog, 'near', 1, 200, 1).name('Fog Near');
-  worldFolder.add(scene.fog, 'far', 1, 200, 1).name('Fog Far');
+  worldFolder.add(world, 'chunkJobTime', 10, 1000, 1).name('Chunk Job Time (ms)');
 
   const terrainFolder = worldFolder.addFolder('Terrain').close();
   terrainFolder.add(world.params, 'seed', 0, 10000, 1).name('Seed');
@@ -60,9 +63,8 @@ export function setupUI(world, player, physics, scene) {
   });
 
   document.addEventListener('keydown', (event) => {
-    console.log(event);
+    //console.log(event);
     if (event.code === 'KeyU') {
-      console.log(gui._hidden);
       if (gui._hidden) {
         gui.show();
       } else {

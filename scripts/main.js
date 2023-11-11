@@ -57,7 +57,7 @@ const ambient = new THREE.AmbientLight();
 ambient.intensity = 0.2;
 scene.add(ambient);
 
-scene.fog = new THREE.Fog(0x80a0e0, 50, 100);
+scene.fog = new THREE.Fog(0x80a0e0, 70, 96);
 
 // Events
 window.addEventListener('resize', () => {

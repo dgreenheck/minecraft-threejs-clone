@@ -6,7 +6,7 @@ import { blocks } from './blocks';
 const CENTER_SCREEN = new THREE.Vector2();
 
 export class Player {
-  camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 100);
+  camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
   cameraHelper = new THREE.CameraHelper(this.camera);
   controls = new PointerLockControls(this.camera, document.body);
 
@@ -45,7 +45,6 @@ export class Player {
 
     // Hide/show instructions based on pointer controls locking/unlocking
     this.controls.addEventListener('lock', function () {
-      console.log('locked');
       document.getElementById('overlay').style.visibility = 'hidden';
     });
 

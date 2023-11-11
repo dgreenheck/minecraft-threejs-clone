@@ -11,7 +11,7 @@ export class World extends THREE.Group {
    * the adjacent chunks are rendered; if set to 2, the
    * chunks adjacent to those are rendered, and so on.
    */
-  drawDistance = 3;
+  drawDistance = 4;
 
   /**
    * If true, chunks are loaded asynchronously.
@@ -19,11 +19,16 @@ export class World extends THREE.Group {
   asyncLoading = true;
 
   /**
+   * Amount of time allotted to load each chunk
+   */
+  chunkJobTime = 200;
+
+  /**
    * Width and height of a single chunk of terrain
    */
   chunkSize = {
     width: 32,
-    height: 24
+    height: 32
   }
 
   /**
@@ -62,6 +67,11 @@ export class World extends THREE.Group {
    */
   dataStore = new DataStore();
 
+  /**
+   * Queue containing chunk creation jobs
+   */
+  jobQueue = [];
+
   constructor(seed = 0) {
     super();
     this.seed = seed;
@@ -76,6 +86,15 @@ export class World extends THREE.Group {
           break;
       }
     });
+
+    setInterval(() => {
+      if (this.jobQueue.length > 0) {
+        //console.log(`Jobs in queue: ${this.jobQueue.length}`);
+        const job = this.jobQueue.shift();
+        //console.log(job);
+        requestIdleCallback(job, { timeout: 1000 });
+      }
+    }, this.chunkJobTime);
   }
 
   /**
@@ -83,10 +102,16 @@ export class World extends THREE.Group {
    * @param {Player} player 
    */
   regenerate(playerPosition = new THREE.Vector3()) {
+    // Clear the queue of existing chunk jobs
+    this.jobQueue = [];
+
+    // Clear all meshes
     this.children.forEach((obj) => {
       obj.disposeChildren();
     });
     this.clear();
+
+    // Reset player position
     this.update(playerPosition);
   }
 
@@ -177,7 +202,7 @@ export class World extends THREE.Group {
     chunk.userData = { x, z };
 
     if (this.asyncLoading) {
-      requestIdleCallback(chunk.generate.bind(chunk), { timeout: 1000 });
+      this.jobQueue.push(chunk.generate.bind(chunk));
     } else {
       chunk.generate();
     }
