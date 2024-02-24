@@ -337,7 +337,7 @@ export class WorldChunk extends THREE.Group {
     const block = this.getBlock(x, y, z);
 
     // If this block is non-empty and does not already have an instance, create a new one
-    if (block && block.id !== blocks.empty.id && !block.instanceId) {
+    if (block && block.id !== blocks.empty.id && block.instanceId === null) {
       // Append a new instance to the end of our InstancedMesh
       const mesh = this.children.find((instanceMesh) => instanceMesh.name === block.id);
       const instanceId = mesh.count++;
@@ -364,7 +364,7 @@ export class WorldChunk extends THREE.Group {
   deleteBlockInstance(x, y, z) {
     const block = this.getBlock(x, y, z);
 
-    if (block.id === blocks.empty.id || !block.instanceId) return;
+    if (block.id === blocks.empty.id || block.instanceId === null) return;
 
     // Get the mesh and instance id of the block
     const mesh = this.children.find((instanceMesh) => instanceMesh.name === block.id);
@@ -394,7 +394,7 @@ export class WorldChunk extends THREE.Group {
     mesh.instanceMatrix.needsUpdate = true;
     mesh.computeBoundingSphere();
 
-    this.setBlockInstanceId(x, y, z, undefined);
+    this.setBlockInstanceId(x, y, z, null);
   }
 
   /**
