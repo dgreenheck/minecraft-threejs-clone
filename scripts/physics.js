@@ -44,7 +44,7 @@ export class Physics {
       this.accumulator -= this.stepSize;
     }
   }
-  
+
   /**
    * Main function for collision detection
    */
@@ -54,12 +54,12 @@ export class Physics {
 
     const candidates = this.broadPhase(player, world);
     const collisions = this.narrowPhase(candidates, player);
-  
+
     if (collisions.length > 0) {
       this.resolveCollisions(collisions, player);
     }
   }
-  
+
   /**
    * Performs a rough search against the world to return all
    * possible blocks the player may be colliding with
@@ -67,7 +67,7 @@ export class Physics {
    */
   broadPhase(player, world) {
     const candidates = [];
-  
+
     // Get the block extents of the player
     const minX = Math.floor(player.position.x - player.radius);
     const maxX = Math.ceil(player.position.x + player.radius);
@@ -75,7 +75,7 @@ export class Physics {
     const maxY = Math.ceil(player.position.y);
     const minZ = Math.floor(player.position.z - player.radius);
     const maxZ = Math.ceil(player.position.z + player.radius);
-  
+
     // Loop through all blocks next to the block the center of the player is in
     // If they aren't empty, then they are a possible collision candidate
     for (let x = minX; x <= maxX; x++) {
@@ -83,7 +83,7 @@ export class Physics {
         for (let z = minZ; z <= maxZ; z++) {
           const blockId = world.getBlock(x, y, z)?.id;
           if (blockId && blockId !== blocks.empty.id) {
-            const block = { x, y, z};
+            const block = { x, y, z };
             candidates.push(block);
             this.addCollisionHelper(block);
           }
@@ -95,7 +95,7 @@ export class Physics {
 
     return candidates;
   }
-  
+
   /**
    * Narrows down the blocks found in the broad-phase to the set
    * of blocks the player is actually colliding with
@@ -104,7 +104,7 @@ export class Physics {
    */
   narrowPhase(candidates, player) {
     const collisions = [];
-  
+
     for (const block of candidates) {
       // Get the point on the block that is closest to the center of the player's bounding cylinder
       const closestPoint = {
@@ -152,7 +152,7 @@ export class Physics {
 
     return collisions;
   }
-  
+
   /**
    * Resolves each of the collisions found in the narrow-phase
    * @param {*} collisions 
@@ -196,7 +196,7 @@ export class Physics {
     const dy = p.y - (player.position.y - (player.height / 2));
     const dz = p.z - player.position.z;
     const r_sq = dx * dx + dz * dz;
-  
+
     // Check if contact point is inside the player's bounding cylinder
     return (Math.abs(dy) < player.height / 2) && (r_sq < player.radius * player.radius);
   }

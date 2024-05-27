@@ -18,6 +18,7 @@ You sure can! I created a tutorial video series on my YouTube channel which you 
 
 ## Features
 - Procedural World Generation
+- Biomes
 - Resources (Coal and Iron)
 - Terrain Chunking
 - Terraforming

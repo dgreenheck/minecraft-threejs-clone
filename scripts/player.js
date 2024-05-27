@@ -6,23 +6,27 @@ import { blocks } from './blocks';
 const CENTER_SCREEN = new THREE.Vector2();
 
 export class Player {
-  camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 100);
-  cameraHelper = new THREE.CameraHelper(this.camera);
-  controls = new PointerLockControls(this.camera, document.body);
-
   height = 1.75;
   radius = 0.5;
   maxSpeed = 5;
+
   jumpSpeed = 10;
+  sprinting = false;
   onGround = false;
+
+  input = new THREE.Vector3();
   velocity = new THREE.Vector3();
   #worldVelocity = new THREE.Vector3();
-  input = new THREE.Vector3();
+
+  camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 100);
+  cameraHelper = new THREE.CameraHelper(this.camera);
+  controls = new PointerLockControls(this.camera, document.body);
+  debugCamera = false;
 
   raycaster = new THREE.Raycaster(new THREE.Vector3(), new THREE.Vector3(), 0, 3);
   selectedCoords = null;
   activeBlockId = blocks.empty.id;
-  
+
   tool = {
     // Group that will contain the tool mesh
     container: new THREE.Group(),
@@ -44,15 +48,8 @@ export class Player {
     scene.add(this.cameraHelper);
 
     // Hide/show instructions based on pointer controls locking/unlocking
-    this.controls.addEventListener('lock', function () {
-      console.log('locked');
-      document.getElementById('overlay').style.visibility = 'hidden';
-    });
-
-    this.controls.addEventListener('unlock', function () {
-      document.getElementById('overlay').style.visibility = 'visible';
-    });
-
+    this.controls.addEventListener('lock', this.onCameraLock.bind(this));
+    this.controls.addEventListener('unlock', this.onCameraUnlock.bind(this));
 
     // The tool is parented to the camera
     this.camera.add(this.tool.container);
@@ -84,7 +81,17 @@ export class Player {
     document.addEventListener('keydown', this.onKeyDown.bind(this));
     document.addEventListener('mousedown', this.onMouseDown.bind(this));
   }
-  
+
+  onCameraLock() {
+    document.getElementById('overlay').style.visibility = 'hidden';
+  }
+
+  onCameraUnlock() {
+    if (!this.debugCamera) {
+      document.getElementById('overlay').style.visibility = 'visible';
+    }
+  }
+
   /**
    * Updates the state of the player
    * @param {World} world 
@@ -105,7 +112,7 @@ export class Player {
   updateRaycaster(world) {
     this.raycaster.setFromCamera(CENTER_SCREEN, this.camera);
     const intersections = this.raycaster.intersectObject(world, true);
-  
+
     if (intersections.length > 0) {
       const intersection = intersections[0];
 
@@ -142,8 +149,8 @@ export class Player {
    */
   applyInputs(dt) {
     if (this.controls.isLocked === true) {
-      this.velocity.x = this.input.x;
-      this.velocity.z = this.input.z;
+      this.velocity.x = this.input.x * (this.sprinting ? 1.5 : 1);
+      this.velocity.z = this.input.z * (this.sprinting ? 1.5 : 1);
       this.controls.moveRight(this.velocity.x * dt);
       this.controls.moveForward(this.velocity.z * dt);
       this.position.y += this.velocity.y * dt;
@@ -153,7 +160,7 @@ export class Player {
         this.velocity.y = 0;
       }
     }
-    
+
     document.getElementById('info-player-position').innerHTML = this.toString();
   }
 
@@ -174,7 +181,7 @@ export class Player {
     this.tool.container.add(tool);
     this.tool.container.receiveShadow = true;
     this.tool.container.castShadow = true;
-  
+
     this.tool.container.position.set(0.6, -0.3, -0.5);
     this.tool.container.scale.set(0.5, 0.5, 0.5);
     this.tool.container.rotation.z = Math.PI / 2;
@@ -222,29 +229,9 @@ export class Player {
    * Event handler for 'keyup' event
    * @param {KeyboardEvent} event 
    */
-  onKeyUp(event) {
-    switch (event.code) {
-      case 'KeyW':
-        this.input.z = 0;
-        break;
-      case 'KeyA':
-        this.input.x = 0;
-        break;
-      case 'KeyS':
-        this.input.z = 0;
-        break;
-      case 'KeyD':
-        this.input.x = 0;
-        break;
-    }
-  }
-
-  /**
-   * Event handler for 'keyup' event
-   * @param {KeyboardEvent} event 
-   */
   onKeyDown(event) {
     if (!this.controls.isLocked) {
+      this.debugCamera = false;
       this.controls.lock();
     }
 
@@ -285,10 +272,43 @@ export class Player {
         this.position.y = 32;
         this.velocity.set(0, 0, 0);
         break;
+      case 'ShiftLeft':
+      case 'ShiftRight':
+        this.sprinting = true;
+        break;
       case 'Space':
         if (this.onGround) {
           this.velocity.y += this.jumpSpeed;
         }
+        break;
+      case 'F10':
+        this.debugCamera = true;
+        this.controls.unlock();
+        break;
+    }
+  }
+
+  /**
+   * Event handler for 'keyup' event
+   * @param {KeyboardEvent} event 
+   */
+  onKeyUp(event) {
+    switch (event.code) {
+      case 'KeyW':
+        this.input.z = 0;
+        break;
+      case 'KeyA':
+        this.input.x = 0;
+        break;
+      case 'KeyS':
+        this.input.z = 0;
+        break;
+      case 'KeyD':
+        this.input.x = 0;
+        break;
+      case 'ShiftLeft':
+      case 'ShiftRight':
+        this.sprinting = false;
         break;
     }
   }
